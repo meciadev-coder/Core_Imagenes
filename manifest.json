@@ -1,11 +1,14 @@
 {
   "name": "Core Reserva Salas",
   "short_name": "Core Salas",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#8E4A7E",
   "theme_color": "#8E4A7E",
   "icons": [
-    { "src": "apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

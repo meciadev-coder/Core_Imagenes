@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Batería de pruebas — Core Reserva Salas</title>
+<style>
+  :root{ --purple:#8E4A7E; --dark:#6B3759; --lav:#F0E8EF; --cream:#FAF7F5;
+         --ok:#27AE60; --warn:#E67E22; --border:#e8d8e6; --muted:#9a7a90; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--cream);color:#2a1a24;
+       padding:16px;max-width:760px;margin:0 auto;line-height:1.45}
+  h1{font-size:20px;color:var(--dark);margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .bar{position:sticky;top:0;background:var(--cream);padding:10px 0;z-index:5;border-bottom:1px solid var(--border)}
+  .device{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .device button{flex:1;min-width:120px;padding:8px;border:1.5px solid var(--border);background:#fff;
+       border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:var(--dark)}
+  .device button.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .progress{height:8px;background:var(--lav);border-radius:6px;overflow:hidden;margin-top:6px}
+  .progress > div{height:100%;background:var(--ok);width:0;transition:width .3s}
+  .pct{font-size:12px;color:var(--muted);margin-top:4px}
+  section{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin:14px 0}
+  section h2{font-size:15px;color:var(--purple);margin-bottom:4px}
+  section .note{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:1px dashed var(--border)}
+  .item:first-of-type{border-top:0}
+  .item input{width:20px;height:20px;margin-top:1px;flex-shrink:0;accent-color:var(--purple)}
+  .item label{font-size:14px;cursor:pointer}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;
+       margin-left:6px;vertical-align:middle}
+  .tag.exp{background:#FBE9D7;color:#B5651D}
+  .reset{margin:20px 0;padding:9px 14px;border:1.5px solid var(--border);background:#fff;
+       border-radius:9px;font-size:13px;color:var(--dark);cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Batería de pruebas — Core Reserva Salas</h1>
+<div class="sub">Marca cada prueba en el dispositivo correspondiente. El progreso se guarda en este dispositivo.</div>
+
+<div class="bar">
+  <div class="device" id="device">
+    <button data-d="desktop">Escritorio</button>
+    <button data-d="safari">Safari móvil</button>
+    <button data-d="pwa">PWA iPhone</button>
+    <button data-d="android">Android/Chrome</button>
+  </div>
+  <div class="progress"><div id="pbar"></div></div>
+  <div class="pct" id="pct">0 / 0</div>
+</div>
+
+<div id="content"></div>
+<button class="reset" onclick="resetDevice()">Borrar marcas de este dispositivo</button>
+
+<script>
+var DEVICE = 'desktop';
+
+// tag 'exp' = comportamiento esperado / limitación conocida, no es un fallo
+var TESTS = [
+ ['Acceso e icono', 'Antes de entrar a la app.', [
+   ['Abre la URL de GitHub Pages (no la de Apps Script directa)'],
+   ['La pantalla de login aparece a pantalla completa, sin barras raras'],
+   ['El logo de Core se ve en el login', 'pwa,safari,desktop,android'],
+   ['Guardado en pantalla de inicio: el icono es el loto morado, NO la "C"', 'pwa,android'],
+   ['Recuerda: borra el icono viejo y vuelve a añadir para que iOS actualice', 'pwa']
+ ]],
+ ['Login', '', [
+   ['Login correcto → entra a la app'],
+   ['Login incorrecto → mensaje de error visible'],
+   ['Campos vacíos → validación impide enviar'],
+   ['Ojo de contraseña → muestra/oculta'],
+   ['Enter en el campo contraseña → hace submit'],
+   ['"Recordarme" marcado → 2ª visita pre-rellena campos + banner'],
+   ['"Recordarme" sin marcar → 2ª visita con campos vacíos'],
+   ['"Otro usuario" → limpia campos y banner'],
+   ['El navegador NO ofrece guardar contraseña (limitación del iframe)', 'exp']
+ ]],
+ ['Grid de reservas', '', [
+   ['Muestra 6 salas y horas 9:00–20:00 al cargar'],
+   ['El día actual aparece resaltado como "Hoy"'],
+   ['Celda libre muestra "+" al pasar el dedo/ratón'],
+   ['Celda reservada muestra iniciales con el color de la sala'],
+   ['Celda con nota muestra la nota'],
+   ['Grid scrollea en horizontal en móvil', 'safari,pwa,android']
+ ]],
+ ['Reservar', '', [
+   ['Clic en celda libre → modal con sala, fecha y hora correctas'],
+   ['Permite añadir nota'],
+   ['Confirmar → celda marcada con color e iniciales'],
+   ['Aparece en la hoja Reservas con estado "activa"'],
+   ['Reservar sala ya ocupada → mensaje de error']
+ ]],
+ ['Detalle y cancelar', '', [
+   ['Clic en celda ocupada → modal con nombre y nota'],
+   ['Admin ve "Cancelar reserva" en cualquier reserva'],
+   ['Usuario ve "Cancelar" solo en las suyas'],
+   ['Cancelar → celda vuelve a estar libre'],
+   ['Queda en la hoja con estado "cancelada"']
+ ]],
+ ['Navegación de días', '', [
+   ['‹ → día anterior'],
+   ['› → día siguiente'],
+   ['"Hoy" → vuelve a hoy'],
+   ['Día sin reservas → grid vacío sin errores'],
+   ['Volver a un día con reservas → las muestra']
+ ]],
+ ['Caché y rendimiento', '', [
+   ['Cambio de día ya visitado → instantáneo, sin loader'],
+   ['Reserva nueva → al volver, aparece (caché invalidado)'],
+   ['Cancelar → al volver, la celda está libre']
+ ]],
+ ['Logout', '', [
+   ['"Salir" → vuelve al login'],
+   ['Tras salir, recargar → muestra login (no entra directo)'],
+   ['Si había "Recordarme", los campos vuelven pre-rellenos']
+ ]],
+ ['Móvil y PWA', 'Solo en móvil.', [
+   ['Grid usable con scroll horizontal', 'safari,pwa,android'],
+   ['Modales se abren desde abajo (bottom sheet)', 'safari,pwa,android'],
+   ['Botones se pulsan bien con el dedo', 'safari,pwa,android'],
+   ['En PWA: arranca a pantalla completa, sin barra de Safari', 'pwa'],
+   ['En PWA: la app no se sale del marco al hacer scroll', 'pwa']
+ ]]
+];
+
+function applies(scope){
+  if(!scope) return true;
+  if(scope==='exp') return true;
+  return scope.split(',').indexOf(DEVICE)>=0;
+}
+function key(si,ii){ return 'cps_'+DEVICE+'_'+si+'_'+ii; }
+
+function render(){
+  document.querySelectorAll('#device button').forEach(function(b){
+    b.classList.toggle('active', b.dataset.d===DEVICE);
+  });
+  var html='', total=0;
+  TESTS.forEach(function(sec,si){
+    var rows='';
+    sec[2].forEach(function(it,ii){
+      var scope=it[1]||'';
+      if(scope && scope!=='exp' && !applies(scope)) return;
+      total++;
+      var k=key(si,ii), checked=localStorage.getItem(k)==='1'?'checked':'';
+      var tag = scope==='exp' ? '<span class="tag exp">esperado</span>' : '';
+      rows+='<div class="item"><input type="checkbox" id="'+k+'" '+checked+
+            ' onchange="toggle(\''+k+'\',this.checked)"><label for="'+k+'">'+it[0]+tag+'</label></div>';
+    });
+    if(!rows) return;
+    html+='<section><h2>'+sec[0]+'</h2>'+(sec[1]?'<div class="note">'+sec[1]+'</div>':'')+rows+'</section>';
+  });
+  document.getElementById('content').innerHTML=html;
+  updateBar(total);
+}
+function toggle(k,v){ v?localStorage.setItem(k,'1'):localStorage.removeItem(k); render(); }
+function updateBar(total){
+  var done=0;
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k.indexOf('cps_'+DEVICE+'_')===0 && localStorage.getItem(k)==='1') done++;
+  }
+  document.getElementById('pbar').style.width=(total?Math.round(done/total*100):0)+'%';
+  document.getElementById('pct').textContent=done+' / '+total;
+}
+function resetDevice(){
+  if(!confirm('¿Borrar las marcas de '+DEVICE+'?')) return;
+  var rm=[];
+  for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i); if(k.indexOf('cps_'+DEVICE+'_')===0) rm.push(k);}
+  rm.forEach(function(k){localStorage.removeItem(k);}); render();
+}
+document.getElementById('device').addEventListener('click',function(e){
+  if(e.target.dataset.d){ DEVICE=e.target.dataset.d; render(); }
+});
+render();
+</script>
+</body>
+</html>
