@@ -1,0 +1,11 @@
+{
+  "name": "Core Reserva Salas",
+  "short_name": "Core Salas",
+  "display": "standalone",
+  "background_color": "#8E4A7E",
+  "theme_color": "#8E4A7E",
+  "icons": [
+    { "src": "apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
